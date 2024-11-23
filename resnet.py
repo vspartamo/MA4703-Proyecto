@@ -1,5 +1,4 @@
 from get_data import *
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
