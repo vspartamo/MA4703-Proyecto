@@ -7,11 +7,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+# ResNet class with forward Euler and Runge-Kutta integration options
 class ResNet(nn.Module):
-    def __init__(self, input_dim, num_layers, hidden_dim):
+    def __init__(self, input_dim, num_layers, hidden_dim, integration="Euler"):
         super(ResNet, self).__init__()
         self.num_layers = num_layers
         self.delta_t = 1.0 / num_layers  # Uniform step size
+        self.integration = integration
 
         # Proyección inicial para ajustar las dimensiones
         self.input_projection = nn.Linear(input_dim, hidden_dim)
@@ -23,13 +25,26 @@ class ResNet(nn.Module):
         # Proyección final para obtener un único valor de salida
         self.final_layer = nn.Linear(hidden_dim, 1)
 
+    def forward_euler(self, x, layer):
+        return x + self.delta_t * self.activation(layer(x))
+
+    def runge_kutta_4(self, x, layer):
+        k1 = self.activation(layer(x))
+        k2 = self.activation(layer(x + 0.5 * self.delta_t * k1))
+        k3 = self.activation(layer(x + 0.5 * self.delta_t * k2))
+        k4 = self.activation(layer(x + self.delta_t * k3))
+        return x + (self.delta_t / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+
     def forward(self, x):
         # Proyecta la entrada a la dimensión oculta
         x = self.input_projection(x)
 
-        # Bloques residuales
+        # Bloques residuales con el método de integración elegido
         for layer in self.layers:
-            x = x + self.delta_t * self.activation(layer(x))
+            if self.integration == "Euler":
+                x = self.forward_euler(x, layer)
+            elif self.integration == "RK":
+                x = self.runge_kutta_4(x, layer)
 
         # Proyecta al espacio de salida y aplica sigmoide
         return torch.sigmoid(self.final_layer(x))
@@ -61,13 +76,13 @@ def generate_data(dataset_type="donut_2d", n_samples=1000):
         raise ValueError(f"Unknown dataset type: {dataset_type}")
 
     # PyTorch expects (n_samples, n_features)
-    features = features.T  
+    features = features.T
     labels = labels.reshape(-1, 1)  # Ensure labels have shape (n_samples, 1)
 
     return torch.tensor(features, dtype=torch.float32), torch.tensor(labels, dtype=torch.float32)
 
 
-# Train function
+# Train function without regularization
 def train_model(model, data_loader, optimizer, criterion, num_epochs):
     model.train()
     for epoch in range(num_epochs):
@@ -78,6 +93,7 @@ def train_model(model, data_loader, optimizer, criterion, num_epochs):
             loss.backward()
             optimizer.step()
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+
 
 # Evaluation function
 def evaluate_model(model, features, labels):
@@ -94,20 +110,20 @@ def evaluate_model(model, features, labels):
 def plot_decision_boundary(model, features, labels):
     x_min, x_max = features[:, 0].min().item() - 0.1, features[:, 0].max().item() + 0.1
     y_min, y_max = features[:, 1].min().item() - 0.1, features[:, 1].max().item() + 0.1
-    
+
     # Generate the grid
     xx, yy = np.meshgrid(
         np.arange(x_min, x_max, 0.01),
         np.arange(y_min, y_max, 0.01)
     )
-    
+
     # Convert the grid to PyTorch tensor
     grid = torch.tensor(np.c_[xx.ravel(), yy.ravel()], dtype=torch.float32)
-    
+
     # Forward pass to get predictions
     with torch.no_grad():
         preds = model(grid).reshape(xx.shape)
-    
+
     # Plotting
     plt.contourf(xx, yy, preds.numpy(), alpha=0.8, cmap=plt.cm.coolwarm)
     plt.scatter(features[:, 0].numpy(), features[:, 1].numpy(), c=labels.flatten().numpy(), edgecolor='k', cmap=plt.cm.coolwarm)
@@ -115,10 +131,11 @@ def plot_decision_boundary(model, features, labels):
     plt.show()
 
 
-# Main script with dataset selection
+# Main script with dataset selection and integration method
 if __name__ == "__main__":
     # Prompt user to select dataset type
     dataset_type = input("Enter dataset type (donut_1d, donut_2d, spiral_2d, squares_2d): ").strip()
+    integration = input("Enter integration method (Euler, RK): ").strip()
 
     # Generate data
     features, labels = generate_data(dataset_type=dataset_type, n_samples=1000)
@@ -127,12 +144,12 @@ if __name__ == "__main__":
 
     # Model, optimizer, and loss function
     input_dim = features.shape[1]
-    model = ResNet(input_dim=input_dim, num_layers=20, hidden_dim=50)
+    model = ResNet(input_dim=input_dim, num_layers=20, hidden_dim=50, integration=integration)
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     criterion = nn.BCELoss()
 
     # Train the model
-    print(f"Training ResNet on dataset '{dataset_type}'...")
+    print(f"Training ResNet on dataset '{dataset_type}' using {integration} integration...")
     train_model(model, data_loader, optimizer, criterion, num_epochs=50)
 
     # Evaluate the model
