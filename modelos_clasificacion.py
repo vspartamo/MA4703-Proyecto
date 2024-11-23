@@ -32,8 +32,9 @@ def generate_data(dataset_type="donut_2d", n_samples=1000):
 
     return torch.tensor(features, dtype=torch.float32), torch.tensor(labels, dtype=torch.float32)
 
-# Función para graficar el límite de decisión
-def plot_decision_boundary(model, X, y, title="Decision Boundary"):
+
+# Función para graficar el límite de decisión en un subplot
+def plot_decision_boundary_subplot(ax, model, X, y, title="Decision Boundary"):
     X_min, X_max = X[:, 0].min() - 1, X[:, 0].max() + 1
     Y_min, Y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
     XX, YY = np.meshgrid(np.arange(X_min, X_max, 0.1),
@@ -41,91 +42,48 @@ def plot_decision_boundary(model, X, y, title="Decision Boundary"):
     Z = model.predict(np.c_[XX.ravel(), YY.ravel()])
     Z = Z.reshape(XX.shape)
 
-    plt.contourf(XX, YY, Z, alpha=0.75, cmap=ListedColormap(['#FFAAAA', '#AAAAFF']))
-    plt.scatter(X[:, 0], X[:, 1], c=y, edgecolors='k', marker='o', cmap=ListedColormap(['#FF0000', '#0000FF']))
-    plt.title(title)
-    plt.show()
+    ax.contourf(XX, YY, Z, alpha=0.75, cmap=ListedColormap(['#FFAAAA', '#AAAAFF']))
+    ax.scatter(X[:, 0], X[:, 1], c=y, edgecolors='k', marker='o', cmap=ListedColormap(['#FF0000', '#0000FF']), alpha=0.1)
+    ax.set_title(title)
+
 
 # Función para evaluar modelos de clasificación
 def evaluate_models(X, y):
     # Dividir datos en entrenamiento y prueba
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
 
-    # 1. Regresión logística
-    log_reg = LogisticRegression(max_iter=1000)
-    log_reg.fit(X_train, y_train)
-    log_reg_preds = log_reg.predict(X_test)
-    log_reg_acc = accuracy_score(y_test, log_reg_preds)
-    print(f"Logistic Regression Accuracy: {log_reg_acc:.4f}")
-
-    # 2. Árboles de decisión
-    tree_clf = DecisionTreeClassifier(random_state=42)
-    tree_clf.fit(X_train, y_train)
-    tree_preds = tree_clf.predict(X_test)
-    tree_acc = accuracy_score(y_test, tree_preds)
-    print(f"Decision Tree Accuracy: {tree_acc:.4f}")
-
-    # 3. K-Vecinos más cercanos (KNN)
-    knn = KNeighborsClassifier(n_neighbors=5)
-    knn.fit(X_train, y_train)
-    knn_preds = knn.predict(X_test)
-    knn_acc = accuracy_score(y_test, knn_preds)
-    print(f"KNN Accuracy: {knn_acc:.4f}")
-
-    # 4. Máquinas de soporte vectorial (SVM)
-    svm = SVC(kernel='rbf', random_state=42)
-    svm.fit(X_train, y_train)
-    svm_preds = svm.predict(X_test)
-    svm_acc = accuracy_score(y_test, svm_preds)
-    print(f"SVM Accuracy: {svm_acc:.4f}")
-
-    # 5. Random Forest
-    rf_clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    rf_clf.fit(X_train, y_train)
-    rf_preds = rf_clf.predict(X_test)
-    rf_acc = accuracy_score(y_test, rf_preds)
-    print(f"Random Forest Accuracy: {rf_acc:.4f}")
-
-    # 6. Gradient Boosting
-    gb_clf = GradientBoostingClassifier(n_estimators=100, random_state=42)
-    gb_clf.fit(X_train, y_train)
-    gb_preds = gb_clf.predict(X_test)
-    gb_acc = accuracy_score(y_test, gb_preds)
-    print(f"Gradient Boosting Accuracy: {gb_acc:.4f}")
-
-    # 7. Naive Bayes
-    nb_clf = GaussianNB()
-    nb_clf.fit(X_train, y_train)
-    nb_preds = nb_clf.predict(X_test)
-    nb_acc = accuracy_score(y_test, nb_preds)
-    print(f"Naive Bayes Accuracy: {nb_acc:.4f}")
-
-    # 8. QDA
-    qda_clf = QuadraticDiscriminantAnalysis()
-    qda_clf.fit(X_train, y_train)
-    qda_preds = qda_clf.predict(X_test)
-    qda_acc = accuracy_score(y_test, qda_preds)
-    print(f"QDA Accuracy: {qda_acc:.4f}")
-
-    # Graficar los límites de decisión para los modelos
-    models = [log_reg, tree_clf, knn, svm, rf_clf, gb_clf, nb_clf, qda_clf]
-    model_names = ["Logistic Regression", "Decision Tree", "KNN", "SVM", "Random Forest", "Gradient Boosting", "Naive Bayes", "QDA"]
-
-    for model, name in zip(models, model_names):
-        print(f"Plotting decision boundary for {name}...")
-        plot_decision_boundary(model, X_train, y_train, title=f"{name} Decision Boundary")
-
-    # 9. Comparar resultados
-    results = {
-        "Logistic Regression": log_reg_acc,
-        "Decision Tree": tree_acc,
-        "KNN": knn_acc,
-        "SVM": svm_acc,
-        "Random Forest": rf_acc,
-        "Gradient Boosting": gb_acc,
-        "Naive Bayes": nb_acc,
-        "QDA": qda_acc,
+    # Definir y entrenar modelos
+    models = {
+        "Logistic Regression": LogisticRegression(max_iter=1000),
+        "Decision Tree": DecisionTreeClassifier(random_state=42),
+        "KNN": KNeighborsClassifier(n_neighbors=5),
+        "SVM": SVC(kernel='rbf', random_state=42),
+        "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+        "Gradient Boosting": GradientBoostingClassifier(n_estimators=100, random_state=42),
+        "Naive Bayes": GaussianNB(),
+        "QDA": QuadraticDiscriminantAnalysis(),
     }
+
+    results = {}
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        preds = model.predict(X_test)
+        acc = accuracy_score(y_test, preds)
+        results[name] = acc
+        print(f"{name} Accuracy: {acc:.4f}")
+
+    # Crear subplots
+    fig, axes = plt.subplots(2, 4, figsize=(20, 10))
+    axes = axes.ravel()
+
+    # Graficar los límites de decisión en los subplots
+    for ax, (name, model) in zip(axes, models.items()):
+        plot_decision_boundary_subplot(ax, model, X_train, y_train, title=name)
+
+    # Ajustar diseño
+    plt.tight_layout()
+    plt.show()
+
     return results
 
 
