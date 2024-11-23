@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-from sklearn.metrics import accuracy_score, adjusted_rand_score
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -73,7 +73,7 @@ def evaluate_models(X, y):
     print(f"KNN Accuracy: {knn_acc:.4f}")
 
     # 4. Máquinas de soporte vectorial (SVM)
-    svm = SVC(kernel='linear', random_state=42)
+    svm = SVC(kernel='rbf', random_state=42)
     svm.fit(X_train, y_train)
     svm_preds = svm.predict(X_test)
     svm_acc = accuracy_score(y_test, svm_preds)
