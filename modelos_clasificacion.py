@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, precision_score
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -54,14 +54,10 @@ def evaluate_models(X, y):
 
     # Definir y entrenar modelos
     models = {
-        "Logistic Regression": LogisticRegression(max_iter=1000),
-        "Decision Tree": DecisionTreeClassifier(random_state=42),
-        "KNN": KNeighborsClassifier(n_neighbors=5),
         "SVM": SVC(kernel='rbf', random_state=42),
         "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
         "Gradient Boosting": GradientBoostingClassifier(n_estimators=100, random_state=42),
         "Naive Bayes": GaussianNB(),
-        "QDA": QuadraticDiscriminantAnalysis(),
     }
 
     results = {}
@@ -69,8 +65,9 @@ def evaluate_models(X, y):
         model.fit(X_train, y_train)
         preds = model.predict(X_test)
         acc = accuracy_score(y_test, preds)
-        results[name] = acc
-        print(f"{name} Accuracy: {acc:.4f}")
+        precision = precision_score(y_test, preds)
+        results[name] = {"accuracy": acc, "precision": precision}
+        print(f"{name} Accuracy: {acc:.4f}, Precision: {precision:.4f}")
 
     # Crear subplots
     fig, axes = plt.subplots(2, 4, figsize=(20, 10))
@@ -98,5 +95,5 @@ if __name__ == "__main__":
 
     # Mostrar resultados
     print("\nPerformance Summary:")
-    for model, score in results.items():
-        print(f"{model}: {score:.4f}")
+    for model, scores in results.items():
+        print(f"{model} - Accuracy: {scores['accuracy']:.4f}, Precision: {scores['precision']:.4f}")
