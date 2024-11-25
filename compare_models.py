@@ -7,8 +7,8 @@ import torch
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-import numpy as np
 import time
+import numpy as np
 
 def plot_decision_boundary_subplot(ax, model, X, y, title=""):
     """
@@ -38,8 +38,6 @@ def plot_decision_boundary_subplot(ax, model, X, y, title=""):
 
 
 def compare_models_and_plot(dataset_types, num_samples=1000, num_epochs=20):
-    from matplotlib.ticker import MaxNLocator
-
     # Configuración de los modelos
     resnet_rk = lambda input_dim: ResNet(input_dim, num_layers=20, hidden_dim=50, integration="RK")
     resnet_euler = lambda input_dim: ResNet(input_dim, num_layers=20, hidden_dim=50, integration="Euler")
@@ -52,13 +50,13 @@ def compare_models_and_plot(dataset_types, num_samples=1000, num_epochs=20):
 
     model_names = ["ResNet RK", "ResNet Euler"] + list(classical_models.keys())  # 6 métodos en total
 
+    time_by_model = {}
+    for model_name in model_names:
+        time_by_model[model_name] = {dataset_type: 0 for dataset_type in dataset_types}
+
     # Crear subplots de 6x4
     fig, axes = plt.subplots(6, 4, figsize=(20, 25))  # 6 filas, 4 columnas
     axes = axes.reshape(6, 4)  # Matriz para organizar filas y columnas
-
-    # Diccionario para almacenar tiempos de ejecución y modelos entrenados
-    execution_times = {model: [] for model in model_names}
-    trained_models = {model: [] for model in model_names}
 
     # Etiquetas de las columnas (datasets)
     for col_idx, dataset_type in enumerate(dataset_types):
@@ -93,15 +91,14 @@ def compare_models_and_plot(dataset_types, num_samples=1000, num_epochs=20):
             X_train = scaler.fit_transform(X_train)
             X_test = scaler.transform(X_test)
 
-        # Entrenar y almacenar modelos ResNet
+        # Evaluar y graficar modelos ResNet
         for row_idx, (model_name, resnet_model) in enumerate(
             [("ResNet RK", resnet_rk), ("ResNet Euler", resnet_euler)]
         ):
             input_dim = X.shape[1]
             model = resnet_model(input_dim)
 
-            # Medir tiempo de entrenamiento
-            start_time = time.time()
+            # Entrenar modelo ResNet
             model_optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
             model_criterion = torch.nn.BCELoss()
             train_loader = torch.utils.data.DataLoader(
@@ -112,39 +109,30 @@ def compare_models_and_plot(dataset_types, num_samples=1000, num_epochs=20):
                 batch_size=64,
                 shuffle=True,
             )
-            train_model(model, train_loader, model_optimizer, model_criterion, num_epochs)
+            start_time = time.time()
+            train_model(model, train_loader, model_optimizer, model_criterion, num_epochs, verbose=False)
             end_time = time.time()
 
-            # Guardar tiempo y modelo entrenado
-            execution_times[model_name].append(end_time - start_time)
-            trained_models[model_name].append(model)
+            time_by_model[model_name][dataset_type] = end_time - start_time
 
-        # Entrenar y almacenar modelos clásicos
+            # Graficar límites de decisión
+            plot_decision_boundary_subplot(axes[row_idx, col_idx], model, X_train, y_train)
+
+        # Evaluar y graficar modelos clásicos
         for row_idx, (model_name, model) in enumerate(classical_models.items(), start=2):
             start_time = time.time()
             model.fit(X_train, y_train)
             end_time = time.time()
 
-            # Guardar tiempo y modelo entrenado
-            execution_times[model_name].append(end_time - start_time)
-            trained_models[model_name].append(model)
-
+            time_by_model[model_name][dataset_type] = end_time - start_time
+            
+            plot_decision_boundary_subplot(axes[row_idx, col_idx], model, X_train, y_train)
+        
+    # Printear tiempos de ejecución
+    for model_name in model_names:
+        for dataset_type in dataset_types:
+            print(f"Tiempo para {model_name} en {dataset_type}: {time_by_model[model_name][dataset_type]}")
     
-    # Mostrar tiempos de ejecución
-    print("\nTiempos de Ejecución:")
-    for model_name, times in execution_times.items():
-        avg_time = np.mean(times)
-        print(f"{model_name}: {avg_time:.4f} segundos (promedio)")
-
-    # Graficar límites de decisión
-    for col_idx, dataset_type in enumerate(dataset_types):
-        for row_idx, model_name in enumerate(model_names):
-            model = trained_models[model_name][col_idx]
-            if isinstance(model, ResNet):  # ResNet
-                plot_decision_boundary_subplot(axes[row_idx, col_idx], model, X_train, y_train)
-            else:  # Modelos clásicos
-                plot_decision_boundary_subplot(axes[row_idx, col_idx], model, X_train, y_train)
-
     # Mover nombres de datasets a la parte inferior
     for col_idx, dataset_type in enumerate(dataset_types):
         axes[-1, col_idx].set_xlabel(dataset_type, fontsize=14, labelpad=10)
@@ -163,4 +151,4 @@ if __name__ == "__main__":
     dataset_types = ["donut_1d", "donut_2d", "spiral_2d", "squares_2d"]
 
     # Comparar modelos y graficar
-    compare_models_and_plot(dataset_types, num_epochs=50)
+    compare_models_and_plot(dataset_types, num_epochs=1)

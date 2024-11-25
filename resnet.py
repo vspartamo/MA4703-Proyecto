@@ -127,7 +127,7 @@ def generate_data(dataset_type="donut_2d", n_samples=1000):
     return torch.tensor(features, dtype=torch.float32), torch.tensor(labels, dtype=torch.float32)
 
 
-def train_model(model, data_loader, optimizer, criterion, num_epochs, use_custom_gradients=False):
+def train_model(model, data_loader, optimizer, criterion, num_epochs, use_custom_gradients=False, verbose=True):
     """
     Train the model using either traditional backpropagation or custom gradients.
     
@@ -173,7 +173,8 @@ def train_model(model, data_loader, optimizer, criterion, num_epochs, use_custom
             # Optimizer step
             optimizer.step()
 
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+        if verbose == True:
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
 
 
 # Evaluation function
