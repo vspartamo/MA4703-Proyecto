@@ -151,4 +151,4 @@ if __name__ == "__main__":
     dataset_types = ["donut_1d", "donut_2d", "spiral_2d", "squares_2d"]
 
     # Comparar modelos y graficar
-    compare_models_and_plot(dataset_types, num_epochs=1)
+    compare_models_and_plot(dataset_types, num_epochs=50)
