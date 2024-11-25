@@ -129,13 +129,13 @@ def compare_models_and_plot(dataset_types, num_samples=1000, num_epochs=20):
             execution_times[model_name].append(end_time - start_time)
             trained_models[model_name].append(model)
 
-    
-    # Mostrar tiempos de ejecución
-    print("\nTiempos de Ejecución:")
-    for model_name, times in execution_times.items():
-        avg_time = np.mean(times)
-        print(f"{model_name}: {avg_time:.4f} segundos (promedio)")
-
+    # Mostrar tiempos de ejecución por dataset
+    print("\nTiempos de Ejecución por Dataset:")
+    for col_idx, dataset_type in enumerate(dataset_types):
+        print(f"\nDataset: {dataset_type}")
+        for model_name in model_names:
+            avg_time = execution_times[model_name][col_idx]
+            print(f"{model_name}: {avg_time:.4f} segundos ")
     # Graficar límites de decisión
     for col_idx, dataset_type in enumerate(dataset_types):
         for row_idx, model_name in enumerate(model_names):
