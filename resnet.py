@@ -5,6 +5,7 @@ import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 
+np.random.seed(42)
 
 class ResNet(nn.Module):
     def __init__(self, input_dim, num_layers, hidden_dim, integration="Euler"):
@@ -95,7 +96,6 @@ class ResNet(nn.Module):
         return grad
 
 
-# Data generation (allows selection of dataset type)
 def generate_data(dataset_type="donut_2d", n_samples=1000):
     """
     Generate data based on the selected dataset type.
@@ -127,16 +127,52 @@ def generate_data(dataset_type="donut_2d", n_samples=1000):
     return torch.tensor(features, dtype=torch.float32), torch.tensor(labels, dtype=torch.float32)
 
 
-# Train function without regularization
-def train_model(model, data_loader, optimizer, criterion, num_epochs):
+def train_model(model, data_loader, optimizer, criterion, num_epochs, use_custom_gradients=False):
+    """
+    Train the model using either traditional backpropagation or custom gradients.
+    
+    Args:
+        model (nn.Module): The model to train.
+        data_loader (DataLoader): DataLoader with training data.
+        optimizer (Optimizer): Optimizer for updating model parameters.
+        criterion (Loss): Loss function to minimize.
+        num_epochs (int): Number of epochs to train the model.
+        use_custom_gradients (bool): Whether to use custom gradients or traditional backpropagation.
+    """
     model.train()
     for epoch in range(num_epochs):
         for features, labels in data_loader:
             optimizer.zero_grad()
-            outputs = model(features)  # Obtén solo las predicciones
-            loss = criterion(outputs, labels)
-            loss.backward()
+
+            if use_custom_gradients:
+                # Forward pass with activations and preactivations
+                outputs, activations, pre_activations = model(features, return_all=True)
+
+                # Compute loss
+                loss = criterion(outputs, labels)
+
+                # Compute custom gradients
+                gradients = model.compute_gradient(labels, activations, pre_activations)
+
+                # Apply custom gradients manually
+                with torch.no_grad():
+                    # Update weights and biases of residual layers
+                    for i, layer in enumerate(model.layers):
+                        layer.weight.grad = gradients["K"][i]
+                        layer.bias.grad = gradients["b"][i]
+
+                    # Update final layer
+                    model.final_layer.weight.grad = gradients["W"]
+                    model.final_layer.bias.grad = gradients["mu"]
+            else:
+                # Traditional training
+                outputs = model(features)
+                loss = criterion(outputs, labels)
+                loss.backward()
+
+            # Optimizer step
             optimizer.step()
+
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
 
 
@@ -189,13 +225,13 @@ if __name__ == "__main__":
 
     # Model, optimizer, and loss function
     input_dim = features.shape[1]
-    model = ResNet(input_dim=input_dim, num_layers=20, hidden_dim=50, integration=integration)
+    model = ResNet(input_dim=input_dim, num_layers=20, hidden_dim=50, integration="Euler")
     optimizer = optim.Adam(model.parameters(), lr=0.01)
     criterion = nn.BCELoss()
 
     # Train the model
     print(f"Training ResNet on dataset '{dataset_type}' using {integration} integration...")
-    train_model(model, data_loader, optimizer, criterion, num_epochs=50)
+    train_model(model, data_loader, optimizer, criterion, num_epochs=50, use_custom_gradients=True)
 
     # Evaluate the model
     print("Evaluating the model...")
