@@ -55,7 +55,7 @@ def compare_models_and_plot(dataset_types, num_samples=1000, num_epochs=20):
         time_by_model[model_name] = {dataset_type: 0 for dataset_type in dataset_types}
 
     # Crear subplots de 6x4
-    fig, axes = plt.subplots(6, 4, figsize=(20, 25))  # 6 filas, 4 columnas
+    fig, axes = plt.subplots(6, 4, figsize=(20, 30))  # 6 filas, 4 columnas
     axes = axes.reshape(6, 4)  # Matriz para organizar filas y columnas
 
     # Etiquetas de las columnas (datasets)
@@ -63,9 +63,11 @@ def compare_models_and_plot(dataset_types, num_samples=1000, num_epochs=20):
         axes[0, col_idx].set_title(dataset_type, fontsize=14, pad=20)
 
     # Etiquetas de las filas (modelos)
-    for row_idx, model_name in enumerate(model_names):
+    short_model_names = ["RN-RK", "RN-E", "SVM", "RF", "GB", "NB"]
+    for row_idx, short_name in enumerate(short_model_names):
+
         axes[row_idx, 0].set_ylabel(
-            model_name, fontsize=12, rotation=0, labelpad=10, va="center", ha="right"
+            short_name, fontsize=12, rotation=0, labelpad=10, va="center", ha="right"
         )
 
     # Eliminar ticks de ejes internos para evitar superposición
