@@ -91,7 +91,7 @@ class ResNet(nn.Module):
 
             # Propagate p to the previous layer
             if k > 0:
-                p = p.mm(self.layers[k].weight.t()) + gamma
+                p = p + delta_t * gamma.mm(self.layers[k].weight)
 
         return grad
 
