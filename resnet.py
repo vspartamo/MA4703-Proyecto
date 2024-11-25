@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-# ResNet class with forward Euler and Runge-Kutta integration options
 class ResNet(nn.Module):
     def __init__(self, input_dim, num_layers, hidden_dim, integration="Euler"):
         super(ResNet, self).__init__()
@@ -34,19 +33,66 @@ class ResNet(nn.Module):
         k4 = self.activation(layer(x + self.delta_t * k3))
         return x + (self.delta_t / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
-    def forward(self, x):
+    def forward(self, x, return_all=False):
         # Proyecta la entrada a la dimensión oculta
         x = self.input_projection(x)
 
         # Bloques residuales con el método de integración elegido
+        activations = [x]
+        pre_activations = []
         for layer in self.layers:
             if self.integration == "Euler":
-                x = self.forward_euler(x, layer)
+                x_next = self.forward_euler(x, layer)
             elif self.integration == "RK":
-                x = self.runge_kutta_4(x, layer)
+                x_next = self.runge_kutta_4(x, layer)
+            pre_activations.append(layer(x))  # Pre-activations for gradient
+            activations.append(x_next)
+            x = x_next
 
         # Proyecta al espacio de salida y aplica sigmoide
-        return torch.sigmoid(self.final_layer(x))
+        output = torch.sigmoid(self.final_layer(x))
+
+        if return_all:
+            return output, activations, pre_activations
+        else:
+            return output
+
+    def compute_gradient(self, labels, activations, pre_activations):
+        """
+        Compute gradients for weights, biases, and state variables using backpropagation.
+        """
+        grad = {
+            "W": torch.zeros_like(self.final_layer.weight),
+            "mu": torch.zeros_like(self.final_layer.bias),
+            "K": [torch.zeros_like(layer.weight) for layer in self.layers],
+            "b": [torch.zeros_like(layer.bias) for layer in self.layers]
+        }
+
+        N = self.num_layers
+        delta_t = self.delta_t
+
+        # Initialize rho for the final layer
+        final_activation = activations[-1]
+        z = self.final_layer(final_activation)
+        rho = (torch.sigmoid(z) - labels) * (torch.sigmoid(z) * (1 - torch.sigmoid(z)))
+
+        # Gradients for final layer
+        grad["W"] = rho.t().mm(final_activation)
+        grad["mu"] = rho.sum(dim=0)
+
+        # Backpropagation for intermediate layers
+        p = rho.mm(self.final_layer.weight)
+        for k in range(N - 1, -1, -1):
+            # Compute gamma and layer gradients
+            gamma = p * (1 - torch.tanh(pre_activations[k]) ** 2)
+            grad["K"][k] = delta_t * gamma.t().mm(activations[k])
+            grad["b"][k] = delta_t * gamma.sum(dim=0)
+
+            # Propagate p to the previous layer
+            if k > 0:
+                p = p.mm(self.layers[k].weight.t()) + gamma
+
+        return grad
 
 
 # Data generation (allows selection of dataset type)
@@ -87,7 +133,7 @@ def train_model(model, data_loader, optimizer, criterion, num_epochs):
     for epoch in range(num_epochs):
         for features, labels in data_loader:
             optimizer.zero_grad()
-            outputs = model(features)
+            outputs = model(features)  # Obtén solo las predicciones
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
